@@ -36,3 +36,11 @@
     transform: rotate(360deg);
   }
 }
+textarea::placeholder {
+  color: #666 !important; /* default for light */
+}
+
+body.dark-mode textarea::placeholder {
+  color: #ccc !important; /* visible in dark */
+}
+

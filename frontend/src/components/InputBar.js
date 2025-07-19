@@ -1,86 +1,127 @@
-import React, { useState, useEffect } from "react";
-import { Mic } from "lucide-react";
+// InputBar.js
+import React, { useState, useEffect, useRef } from "react";
+import { FaMicrophone, FaPaperPlane, FaPaperclip } from "react-icons/fa";
 
-function InputBar({ onSend, darkMode, inputValue, setInputValue, isLoading }) {
+const InputBar = ({ onSend, darkMode, inputValue, setInputValue, placeholder = "Type your message..." }) => {
   const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
-    if (inputValue !== undefined) {
-      setInputValue(inputValue);
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = "en-US";
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue((prev) => prev + " " + transcript);
+        setListening(false);
+      };
+
+      recognitionRef.current.onend = () => setListening(false);
+      recognitionRef.current.onerror = () => setListening(false);
     }
-  }, [inputValue, setInputValue]);
-
-  const handleVoiceClick = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Sorry, your browser does not support Speech Recognition.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.start();
-    setListening(true);
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInputValue(transcript);
-      setListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
-      alert("Voice recognition error: " + event.error);
-      setListening(false);
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-  };
+  }, [setInputValue]);
 
   const handleSend = () => {
-    if (!inputValue.trim() || isLoading) return;
-    onSend(inputValue);
-    setInputValue("");
+    if (inputValue.trim()) {
+      onSend(inputValue.trim());
+      setInputValue("");
+    }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const uploadedFile = e.target.files[0];
+    if (uploadedFile) {
+      setInputValue(uploadedFile.name);
+    }
+  };
+
+  const toggleMic = () => {
+    if (!recognitionRef.current) return;
+    if (listening) {
+      recognitionRef.current.stop();
+      setListening(false);
+    } else {
+      recognitionRef.current.start();
+      setListening(true);
+    }
+  };
+
+  const iconColor = darkMode ? "#f8f8f8" : "#202020";
+  const bgColor = darkMode ? "#1c1c1c" : "#f7f7f7";
+  const borderColor = darkMode ? "#666" : "#ccc";
+  const inputBg = darkMode ? "#2a2a2a" : "#fff";
+  const textColor = darkMode ? "#fff" : "#000";
+
   return (
-    <div className="input-group mb-3">
-      <input
-        type="text"
-        className={`form-control ${darkMode ? "bg-dark text-white border-secondary" : ""}`}
-        placeholder="Type or speak your message..."
+    <div
+      className="d-flex align-items-center rounded px-3 py-2 mt-3"
+      style={{
+        backgroundColor: bgColor,
+        border: `2px solid ${borderColor}`,
+        transition: "all 0.3s",
+      }}
+    >
+      {/* File Upload Icon - Left */}
+      <label className="me-2 mb-0" style={{ cursor: "pointer" }} title="Attach a file">
+        <FaPaperclip size={18} color={iconColor} />
+        <input
+          type="file"
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+      </label>
+
+      {/* Input Area */}
+      <textarea
+        className="form-control me-2"
+        rows={1}
+        style={{
+          resize: "none",
+          backgroundColor: inputBg,
+          color: textColor,
+          border: "none",
+          outline: "none",
+          caretColor: textColor,
+        }}
+        placeholder={placeholder}
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-          }
-        }}
+        onKeyDown={handleKeyPress}
       />
+
+      {/* Mic Icon */}
       <button
-        className="btn btn-primary"
-        type="button"
-        onClick={handleSend}
-        disabled={isLoading}
+        className="btn p-0 me-3"
+        title="Voice input"
+        onClick={toggleMic}
+        style={{ border: "none", background: "none" }}
       >
-        Send
+        <FaMicrophone size={18} color={listening ? "#ff4d4d" : iconColor} />
       </button>
+
+      {/* Send Icon */}
       <button
-        className={`btn btn-outline-secondary ${listening ? "active" : ""}`}
-        type="button"
-        onClick={handleVoiceClick}
-        title="Speak"
+        className="btn p-0"
+        onClick={handleSend}
+        title="Send"
+        style={{ border: "none", background: "none" }}
       >
-        <Mic size={20} />
+        <FaPaperPlane size={20} color={iconColor} />
       </button>
     </div>
   );
-}
+};
 
 export default InputBar;
